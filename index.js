@@ -10,12 +10,53 @@ const {
 } = require("@whiskeysockets/baileys");
 const P = require("pino");
 const qrcode = require("qrcode-terminal");
+const fs = require("fs");
+const path = require("path");
+const zlib = require("zlib");
 
 const config = require("./config");
 const { handleMessage } = require("./handler");
 
+/**
+ * If config.sessionID is set (format "<sessionPrefix>!<base64-gzipped-creds>"),
+ * decode it and write creds.json into the session folder so we can skip QR pairing.
+ */
+function restoreSessionFromString() {
+  const sessionFolder = `./${config.sessionName || "session"}`;
+  const sessionFile = path.join(sessionFolder, "creds.json");
+  const raw = config.sessionID;
+
+  if (!raw || typeof raw !== "string") return sessionFolder;
+
+  const prefix = config.sessionPrefix || "AutoBot";
+  if (!raw.startsWith(prefix + "!")) {
+    console.log(
+      `📡 Session: ignoring sessionID (expected prefix "${prefix}!"). Falling back to QR.`
+    );
+    return sessionFolder;
+  }
+
+  try {
+    const b64 = raw.slice(prefix.length + 1).replace(/\.\.\./g, "");
+    const compressed = Buffer.from(b64, "base64");
+    const decompressed = zlib.gunzipSync(compressed);
+
+    if (!fs.existsSync(sessionFolder)) {
+      fs.mkdirSync(sessionFolder, { recursive: true });
+    }
+    fs.writeFileSync(sessionFile, decompressed, "utf8");
+    console.log("📡 Session: 🔑 Restored from sessionID string");
+  } catch (e) {
+    console.error("📡 Session: ❌ Failed to restore sessionID:", e.message);
+    console.log("Falling back to QR login.");
+  }
+
+  return sessionFolder;
+}
+
 async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState(config.sessionDir);
+  const sessionFolder = restoreSessionFromString();
+  const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
@@ -47,7 +88,10 @@ async function start() {
         `Connection closed (code=${code}). Reconnecting: ${shouldReconnect}`
       );
       if (shouldReconnect) start();
-      else console.log("Logged out. Delete auth_session/ and restart to re-pair.");
+      else
+        console.log(
+          `Logged out. Delete ${config.sessionName}/ and restart to re-pair.`
+        );
     }
   });
 
