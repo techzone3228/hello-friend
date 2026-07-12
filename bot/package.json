@@ -1,0 +1,22 @@
+{
+  "name": "autoreply-bot",
+  "version": "1.0.0",
+  "description": "Simple WhatsApp auto-reply bot built on Baileys. Add trigger -> reply pairs in commands.js.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": ["whatsapp", "bot", "baileys", "autoreply"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "v7.0.0-rc.9",
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
