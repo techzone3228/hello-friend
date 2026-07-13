@@ -149,6 +149,9 @@ async function handleMessage(sock, msg) {
       if (handled) return;
     }
 
+    // Ignore any other messages we sent ourselves to avoid reply loops.
+    if (fromMe) return;
+
     if (isGroup && !config.replyInGroups) return;
 
     if (isGroup && config.requireMentionInGroups) {
