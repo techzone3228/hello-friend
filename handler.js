@@ -35,6 +35,9 @@ function senderNumber(msg) {
 }
 
 function isOwner(msg) {
+  // Messages sent from the bot's own account (e.g. owner texting themselves)
+  // count as owner-authored.
+  if (msg.key.fromMe) return true;
   return senderNumber(msg) === String(config.ownerNumber);
 }
 
