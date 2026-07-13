@@ -91,7 +91,44 @@ async function sendProductDetails(sock, msg, from, product) {
     `🛍 *${product.name}*\n` +
     `💰 Price: ${formatPrice(product.price)}\n\n` +
     `${product.description || "(no description)"}`;
-  await sock.sendMessage(from, { text: body }, { quoted: msg });
+
+  try {
+    await sendButtons(
+      sock,
+      from,
+      {
+        text: body,
+        footer: "Tap a button below",
+        buttons: [
+          { id: `${BUY_PREFIX}${product.id}`, text: config.buyNowButtonText || "🛒 Buy Now" },
+          { id: MENU_ID, text: config.productsButtonText || "🛍 Products" },
+        ],
+      },
+      { quoted: msg }
+    );
+  } catch (e) {
+    console.error("sendButtons (product details) failed:", e);
+    await sock.sendMessage(from, { text: body }, { quoted: msg });
+  }
+}
+
+async function sendTextWithProductsButton(sock, msg, from, text) {
+  try {
+    await sendButtons(
+      sock,
+      from,
+      {
+        text,
+        buttons: [
+          { id: MENU_ID, text: config.productsButtonText || "🛍 Products" },
+        ],
+      },
+      { quoted: msg }
+    );
+  } catch (e) {
+    console.error("sendButtons (auto-reply) failed:", e);
+    await sock.sendMessage(from, { text }, { quoted: msg });
+  }
 }
 
 function extractSelectedId(message) {
