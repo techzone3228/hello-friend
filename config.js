@@ -22,6 +22,11 @@ module.exports = {
   // Prefix expected in sessionID (change if you want your own branding).
   sessionPrefix: "AutoBot",
 
+  // ===== GOOGLE DRIVE PERSISTENCE =====
+  // File name used on Google Drive to store your auto-reply rules.
+  // Created automatically on first save.
+  driveFileName: "autoreply_bot_rules.txt",
+
   // ===== MATCHING CONFIGURATION =====
   // Match mode for triggers:
   //   "exact"    -> message must equal the trigger

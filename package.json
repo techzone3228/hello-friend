@@ -1,7 +1,7 @@
 {
   "name": "autoreply-bot",
   "version": "1.0.0",
-  "description": "Simple WhatsApp auto-reply bot built on Baileys. Add trigger -> reply pairs in commands.js.",
+  "description": "Simple WhatsApp auto-reply bot built on Baileys. Owner can add/remove replies at runtime; rules persist on Google Drive.",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
@@ -13,6 +13,8 @@
   "license": "MIT",
   "dependencies": {
     "@whiskeysockets/baileys": "v7.0.0-rc.9",
+    "axios": "^1.7.7",
+    "form-data": "^4.0.1",
     "pino": "^9.0.0",
     "qrcode-terminal": "^0.12.0"
   },
