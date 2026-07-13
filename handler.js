@@ -403,14 +403,27 @@ async function handleMessage(sock, msg) {
       if (!mentioned) return;
     }
 
-    // Handle product list/button selection (id `product:<id>`).
+    // Handle button selections.
     const selectedId = extractSelectedId(msg.message);
-    if (selectedId && selectedId.startsWith(PRODUCT_ROW_PREFIX)) {
-      const id = selectedId.slice(PRODUCT_ROW_PREFIX.length);
-      const p = products.get(id);
-      if (p) {
-        await sendProductDetails(sock, msg, from, p);
+    if (selectedId) {
+      if (selectedId === MENU_ID) {
+        await sendProductsMenu(sock, msg, from);
         return;
+      }
+      if (selectedId.startsWith(BUY_PREFIX)) {
+        const id = selectedId.slice(BUY_PREFIX.length);
+        const p = products.get(id);
+        const reply = buyNow.render(p || {});
+        await sendTextWithProductsButton(sock, msg, from, reply);
+        return;
+      }
+      if (selectedId.startsWith(PRODUCT_ROW_PREFIX)) {
+        const id = selectedId.slice(PRODUCT_ROW_PREFIX.length);
+        const p = products.get(id);
+        if (p) {
+          await sendProductDetails(sock, msg, from, p);
+          return;
+        }
       }
     }
 
@@ -434,7 +447,7 @@ async function handleMessage(sock, msg) {
       await sock.sendPresenceUpdate("paused", from).catch(() => {});
     }
 
-    await sock.sendMessage(from, { text: hit.reply }, { quoted: msg });
+    await sendTextWithProductsButton(sock, msg, from, hit.reply);
   } catch (err) {
     console.error("handleMessage error:", err);
   }
