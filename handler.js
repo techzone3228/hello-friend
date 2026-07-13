@@ -16,6 +16,7 @@
 const config = require("./config");
 const store = require("./store");
 const products = require("./productsStore");
+const { sendInteractiveMessage } = require("gifted-btns");
 
 const PRODUCT_ROW_PREFIX = "product:";
 
@@ -36,28 +37,37 @@ async function sendProductsMenu(sock, msg, from) {
   }
 
   const rows = items.slice(0, 10).map((p) => ({
+    id: `${PRODUCT_ROW_PREFIX}${p.id}`,
     title: p.name,
-    rowId: `${PRODUCT_ROW_PREFIX}${p.id}`,
     description: formatPrice(p.price),
   }));
 
-  const listMsg = {
-    text: config.productsMenuBody || "Select a product:",
-    footer: config.productsMenuFooter || "",
-    title: config.productsMenuTitle || "Products",
-    buttonText: config.productsMenuButton || "Browse",
-    sections: [
-      {
-        title: config.productsSectionTitle || "PRODUCTS",
-        rows,
-      },
-    ],
-  };
-
   try {
-    await sock.sendMessage(from, listMsg, { quoted: msg });
+    await sendInteractiveMessage(
+      sock,
+      from,
+      {
+        text: config.productsMenuBody || "Select a product:",
+        footer: config.productsMenuFooter || "",
+        interactiveButtons: [
+          {
+            name: "single_select",
+            buttonParamsJson: JSON.stringify({
+              title: config.productsMenuButton || "Browse",
+              sections: [
+                {
+                  title: config.productsSectionTitle || "PRODUCTS",
+                  rows,
+                },
+              ],
+            }),
+          },
+        ],
+      },
+      { quoted: msg }
+    );
   } catch (e) {
-    // Fallback to plain text if list message unsupported by client.
+    console.error("sendInteractiveMessage failed:", e);
     const body = items
       .map((p, i) => `${i + 1}. *${p.name}* — ${formatPrice(p.price)}`)
       .join("\n");
@@ -81,6 +91,27 @@ async function sendProductDetails(sock, msg, from, product) {
   await sock.sendMessage(from, { text: body }, { quoted: msg });
 }
 
+function extractSelectedId(message) {
+  if (!message) return "";
+  const list = message.listResponseMessage?.singleSelectReply?.selectedRowId;
+  if (list) return list;
+  const btn =
+    message.buttonsResponseMessage?.selectedButtonId ||
+    message.templateButtonReplyMessage?.selectedId;
+  if (btn) return btn;
+  const paramsJson =
+    message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+  if (paramsJson) {
+    try {
+      const parsed = JSON.parse(paramsJson);
+      if (parsed?.id) return parsed.id;
+      if (Array.isArray(parsed?.selected_ids) && parsed.selected_ids[0])
+        return parsed.selected_ids[0];
+    } catch {}
+  }
+  return "";
+}
+
 function extractText(message) {
   if (!message) return "";
   return (
@@ -88,8 +119,7 @@ function extractText(message) {
     message.extendedTextMessage?.text ||
     message.imageMessage?.caption ||
     message.videoMessage?.caption ||
-    message.buttonsResponseMessage?.selectedButtonId ||
-    message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    extractSelectedId(message) ||
     ""
   );
 }
@@ -309,13 +339,10 @@ async function handleMessage(sock, msg) {
       if (!mentioned) return;
     }
 
-    // Handle product list selection (rowId `product:<id>`).
-    const selectedRowId =
-      msg.message.listResponseMessage?.singleSelectReply?.selectedRowId ||
-      msg.message.interactiveResponseMessage?.nativeFlowResponseMessage
-        ?.paramsJson || "";
-    if (typeof selectedRowId === "string" && selectedRowId.startsWith(PRODUCT_ROW_PREFIX)) {
-      const id = selectedRowId.slice(PRODUCT_ROW_PREFIX.length);
+    // Handle product list/button selection (id `product:<id>`).
+    const selectedId = extractSelectedId(msg.message);
+    if (selectedId && selectedId.startsWith(PRODUCT_ROW_PREFIX)) {
+      const id = selectedId.slice(PRODUCT_ROW_PREFIX.length);
       const p = products.get(id);
       if (p) {
         await sendProductDetails(sock, msg, from, p);
