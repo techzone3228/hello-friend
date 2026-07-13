@@ -74,6 +74,12 @@ async function start() {
     console.error("Failed to init products store:", e.message);
   }
 
+  try {
+    await buyNowStore.init();
+  } catch (e) {
+    console.error("Failed to init buy-now store:", e.message);
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
 
