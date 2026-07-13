@@ -55,6 +55,7 @@ function restoreSessionFromString() {
 }
 
 const store = require("./store");
+const productsStore = require("./productsStore");
 
 async function start() {
   const sessionFolder = restoreSessionFromString();
