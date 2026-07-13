@@ -16,6 +16,7 @@
 const config = require("./config");
 const store = require("./store");
 const products = require("./productsStore");
+const { sendInteractiveMessage } = require("gifted-btns");
 
 const PRODUCT_ROW_PREFIX = "product:";
 
@@ -36,28 +37,37 @@ async function sendProductsMenu(sock, msg, from) {
   }
 
   const rows = items.slice(0, 10).map((p) => ({
+    id: `${PRODUCT_ROW_PREFIX}${p.id}`,
     title: p.name,
-    rowId: `${PRODUCT_ROW_PREFIX}${p.id}`,
     description: formatPrice(p.price),
   }));
 
-  const listMsg = {
-    text: config.productsMenuBody || "Select a product:",
-    footer: config.productsMenuFooter || "",
-    title: config.productsMenuTitle || "Products",
-    buttonText: config.productsMenuButton || "Browse",
-    sections: [
-      {
-        title: config.productsSectionTitle || "PRODUCTS",
-        rows,
-      },
-    ],
-  };
-
   try {
-    await sock.sendMessage(from, listMsg, { quoted: msg });
+    await sendInteractiveMessage(
+      sock,
+      from,
+      {
+        text: config.productsMenuBody || "Select a product:",
+        footer: config.productsMenuFooter || "",
+        interactiveButtons: [
+          {
+            name: "single_select",
+            buttonParamsJson: JSON.stringify({
+              title: config.productsMenuButton || "Browse",
+              sections: [
+                {
+                  title: config.productsSectionTitle || "PRODUCTS",
+                  rows,
+                },
+              ],
+            }),
+          },
+        ],
+      },
+      { quoted: msg }
+    );
   } catch (e) {
-    // Fallback to plain text if list message unsupported by client.
+    console.error("sendInteractiveMessage failed:", e);
     const body = items
       .map((p, i) => `${i + 1}. *${p.name}* — ${formatPrice(p.price)}`)
       .join("\n");
