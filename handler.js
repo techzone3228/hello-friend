@@ -113,7 +113,13 @@ const OWNER_HELP =
   "• `!listreplies` — show all rules\n" +
   "• `!clearreplies` — delete every rule\n" +
   "• `!replyhelp` — show this help\n\n" +
-  "Rules are saved to Google Drive and survive redeploys.";
+  "*Owner product commands:*\n" +
+  "• `!addproduct <name> | <price> | <description>` — add / update a product\n" +
+  "• `!delproduct <name>` — delete a product\n" +
+  "• `!listproducts` — list products\n" +
+  "• `!clearproducts` — remove all products\n" +
+  "• `!producthelp` — show product help\n\n" +
+  "Data is saved to Google Drive and survives redeploys.";
 
 async function handleOwnerCommand(sock, msg, from, text) {
   const trimmed = text.trim();
