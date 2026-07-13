@@ -339,13 +339,10 @@ async function handleMessage(sock, msg) {
       if (!mentioned) return;
     }
 
-    // Handle product list selection (rowId `product:<id>`).
-    const selectedRowId =
-      msg.message.listResponseMessage?.singleSelectReply?.selectedRowId ||
-      msg.message.interactiveResponseMessage?.nativeFlowResponseMessage
-        ?.paramsJson || "";
-    if (typeof selectedRowId === "string" && selectedRowId.startsWith(PRODUCT_ROW_PREFIX)) {
-      const id = selectedRowId.slice(PRODUCT_ROW_PREFIX.length);
+    // Handle product list/button selection (id `product:<id>`).
+    const selectedId = extractSelectedId(msg.message);
+    if (selectedId && selectedId.startsWith(PRODUCT_ROW_PREFIX)) {
+      const id = selectedId.slice(PRODUCT_ROW_PREFIX.length);
       const p = products.get(id);
       if (p) {
         await sendProductDetails(sock, msg, from, p);
