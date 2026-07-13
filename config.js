@@ -40,6 +40,19 @@ module.exports = {
   productsMenuButton: "Browse",
   productsSectionTitle: "💎 PREMIUM SERVICES",
 
+  // ===== BUY NOW =====
+  // Drive filename storing the customizable Buy Now reply text.
+  buyNowFileName: "autoreply_bot_buynow.json",
+
+  // Default Buy Now reply until the owner sets one with `!setbuynow`.
+  // Placeholders: {name}, {price}, {description}
+  buyNowDefault:
+    "🛒 *Order — {name}*\n\nTo complete your purchase of *{name}* ({price}), please contact the owner.",
+
+  // Button labels shown under product details and auto-replies.
+  buyNowButtonText: "🛒 Buy Now",
+  productsButtonText: "🛍 Products",
+
   // ===== MATCHING CONFIGURATION =====
   // Match mode for triggers:
   //   "exact"    -> message must equal the trigger
