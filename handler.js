@@ -441,11 +441,16 @@ async function handleMessage(sock, msg) {
         await sendProductsMenu(sock, msg, from);
         return;
       }
+      if (selectedId === BUY_GENERIC_ID) {
+        const reply = buyNow.render({});
+        await sock.sendMessage(from, { text: reply }, { quoted: msg });
+        return;
+      }
       if (selectedId.startsWith(BUY_PREFIX)) {
         const id = selectedId.slice(BUY_PREFIX.length);
         const p = products.get(id);
         const reply = buyNow.render(p || {});
-        await sendTextWithProductsButton(sock, msg, from, reply);
+        await sock.sendMessage(from, { text: reply }, { quoted: msg });
         return;
       }
       if (selectedId.startsWith(PRODUCT_ROW_PREFIX)) {
