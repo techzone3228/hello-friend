@@ -54,8 +54,18 @@ function restoreSessionFromString() {
   return sessionFolder;
 }
 
+const store = require("./store");
+
 async function start() {
   const sessionFolder = restoreSessionFromString();
+
+  // Load auto-reply rules from Google Drive before connecting.
+  try {
+    await store.init();
+  } catch (e) {
+    console.error("Failed to init rule store:", e.message);
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
 
