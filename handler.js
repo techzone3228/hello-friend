@@ -126,10 +126,14 @@ async function handleOwnerCommand(sock, msg, from, text) {
 
 async function handleMessage(sock, msg) {
   try {
-    if (!msg.message || msg.key.fromMe) return;
+    if (!msg.message) return;
 
     const from = msg.key.remoteJid;
     if (!from) return;
+
+    // Allow owner commands even when sent from the bot's own account (fromMe),
+    // e.g. when you message yourself. Skip all other fromMe messages.
+    const fromMe = !!msg.key.fromMe;
 
     const isGroup = from.endsWith("@g.us");
     const text = extractText(msg.message);
