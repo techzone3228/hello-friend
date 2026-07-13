@@ -67,6 +67,12 @@ async function start() {
     console.error("Failed to init rule store:", e.message);
   }
 
+  try {
+    await productsStore.init();
+  } catch (e) {
+    console.error("Failed to init products store:", e.message);
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);
   const { version } = await fetchLatestBaileysVersion();
 
