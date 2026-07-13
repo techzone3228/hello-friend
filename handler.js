@@ -195,8 +195,84 @@ async function handleOwnerCommand(sock, msg, from, text) {
     return true;
   }
 
+  // ===== product commands =====
+  if (lower === "!producthelp") {
+    await reply(
+      "*Owner product commands:*\n" +
+        "• `!addproduct <name> | <price> | <description>`\n" +
+        "• `!delproduct <name>`\n" +
+        "• `!listproducts`\n" +
+        "• `!clearproducts`\n\n" +
+        "Users can send `!products` to open the menu."
+    );
+    return true;
+  }
+
+  if (lower === "!listproducts") {
+    const items = products.list();
+    if (items.length === 0) {
+      await reply("No products configured. Use `!addproduct` to add one.");
+      return true;
+    }
+    const body = items
+      .map(
+        (p, i) =>
+          `${i + 1}. *${p.name}* — ${formatPrice(p.price)}\n    ${p.description}`
+      )
+      .join("\n\n");
+    await reply(`*Products (${items.length}):*\n\n${body}`);
+    return true;
+  }
+
+  if (lower === "!clearproducts") {
+    const ok = await products.clearAll();
+    await reply(
+      ok ? "✅ All products cleared and synced to Drive." : "❌ Failed to sync to Drive."
+    );
+    return true;
+  }
+
+  if (lower.startsWith("!addproduct")) {
+    const rest = trimmed.slice("!addproduct".length).trim();
+    const parts = rest.split("|").map((s) => s.trim());
+    if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
+      await reply(
+        "Usage: `!addproduct <name> | <price> | <description>`\n" +
+          "Example: `!addproduct Capcut Pro 1 Month | 895 | Full month subscription, instant delivery.`"
+      );
+      return true;
+    }
+    const [name, price, ...descParts] = parts;
+    const description = descParts.join(" | ");
+    const res = await products.add({ name, price, description });
+    if (!res.ok) {
+      await reply("⚠️ Saved locally but failed to sync to Drive.");
+    } else if (res.updated) {
+      await reply(`✏️ Updated *${res.product.name}* and synced to Drive.`);
+    } else {
+      await reply(`✅ Added *${res.product.name}* and synced to Drive.`);
+    }
+    return true;
+  }
+
+  if (lower.startsWith("!delproduct")) {
+    const name = trimmed.slice("!delproduct".length).trim();
+    if (!name) {
+      await reply("Usage: `!delproduct <name>`");
+      return true;
+    }
+    const res = await products.remove(name);
+    if (!res.ok) {
+      await reply(`No product found matching *${name}*.`);
+    } else {
+      await reply(`🗑️ Deleted *${res.product.name}* and synced to Drive.`);
+    }
+    return true;
+  }
+
   return false;
 }
+
 
 async function handleMessage(sock, msg) {
   try {
