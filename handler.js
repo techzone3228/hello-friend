@@ -343,6 +343,27 @@ async function handleOwnerCommand(sock, msg, from, text) {
     return true;
   }
 
+  // ===== Buy Now commands =====
+  if (lower === "!getbuynow") {
+    await reply(`*Current Buy Now reply:*\n\n${buyNow.get()}`);
+    return true;
+  }
+
+  if (lower.startsWith("!setbuynow")) {
+    const rest = trimmed.slice("!setbuynow".length).trim();
+    if (!rest) {
+      await reply(
+        "Usage: `!setbuynow <text>`\n" +
+          "Placeholders: {name}, {price}, {description}\n" +
+          "Example: `!setbuynow Thanks for choosing {name}! Send {price} to JazzCash 0300xxxxxxx.`"
+      );
+      return true;
+    }
+    const ok = await buyNow.set(rest);
+    await reply(ok ? "✅ Buy Now reply saved and synced to Drive." : "⚠️ Saved locally but failed to sync to Drive.");
+    return true;
+  }
+
   return false;
 }
 
