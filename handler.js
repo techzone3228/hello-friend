@@ -15,6 +15,71 @@
 
 const config = require("./config");
 const store = require("./store");
+const products = require("./productsStore");
+
+const PRODUCT_ROW_PREFIX = "product:";
+
+function formatPrice(price) {
+  const cur = config.productsCurrency || "";
+  return cur ? `${cur} ${price}` : String(price);
+}
+
+async function sendProductsMenu(sock, msg, from) {
+  const items = products.list();
+  if (items.length === 0) {
+    await sock.sendMessage(
+      from,
+      { text: "No products available yet." },
+      { quoted: msg }
+    );
+    return;
+  }
+
+  const rows = items.slice(0, 10).map((p) => ({
+    title: p.name,
+    rowId: `${PRODUCT_ROW_PREFIX}${p.id}`,
+    description: formatPrice(p.price),
+  }));
+
+  const listMsg = {
+    text: config.productsMenuBody || "Select a product:",
+    footer: config.productsMenuFooter || "",
+    title: config.productsMenuTitle || "Products",
+    buttonText: config.productsMenuButton || "Browse",
+    sections: [
+      {
+        title: config.productsSectionTitle || "PRODUCTS",
+        rows,
+      },
+    ],
+  };
+
+  try {
+    await sock.sendMessage(from, listMsg, { quoted: msg });
+  } catch (e) {
+    // Fallback to plain text if list message unsupported by client.
+    const body = items
+      .map((p, i) => `${i + 1}. *${p.name}* — ${formatPrice(p.price)}`)
+      .join("\n");
+    await sock.sendMessage(
+      from,
+      {
+        text:
+          `🛍 *${config.productsMenuTitle || "Products"}*\n\n${body}\n\n` +
+          `Reply with a product name to see details.`,
+      },
+      { quoted: msg }
+    );
+  }
+}
+
+async function sendProductDetails(sock, msg, from, product) {
+  const body =
+    `🛍 *${product.name}*\n` +
+    `💰 Price: ${formatPrice(product.price)}\n\n` +
+    `${product.description || "(no description)"}`;
+  await sock.sendMessage(from, { text: body }, { quoted: msg });
+}
 
 function extractText(message) {
   if (!message) return "";
