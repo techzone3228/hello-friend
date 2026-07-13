@@ -35,6 +35,9 @@ function senderNumber(msg) {
 }
 
 function isOwner(msg) {
+  // Messages sent from the bot's own account (e.g. owner texting themselves)
+  // count as owner-authored.
+  if (msg.key.fromMe) return true;
   return senderNumber(msg) === String(config.ownerNumber);
 }
 
@@ -126,10 +129,14 @@ async function handleOwnerCommand(sock, msg, from, text) {
 
 async function handleMessage(sock, msg) {
   try {
-    if (!msg.message || msg.key.fromMe) return;
+    if (!msg.message) return;
 
     const from = msg.key.remoteJid;
     if (!from) return;
+
+    // Allow owner commands even when sent from the bot's own account (fromMe),
+    // e.g. when you message yourself. Skip all other fromMe messages.
+    const fromMe = !!msg.key.fromMe;
 
     const isGroup = from.endsWith("@g.us");
     const text = extractText(msg.message);
@@ -141,6 +148,9 @@ async function handleMessage(sock, msg) {
       const handled = await handleOwnerCommand(sock, msg, from, text);
       if (handled) return;
     }
+
+    // Ignore any other messages we sent ourselves to avoid reply loops.
+    if (fromMe) return;
 
     if (isGroup && !config.replyInGroups) return;
 
