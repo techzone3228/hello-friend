@@ -56,6 +56,7 @@ function restoreSessionFromString() {
 
 const store = require("./store");
 const productsStore = require("./productsStore");
+const buyNowStore = require("./buyNowStore");
 
 async function start() {
   const sessionFolder = restoreSessionFromString();
@@ -71,6 +72,12 @@ async function start() {
     await productsStore.init();
   } catch (e) {
     console.error("Failed to init products store:", e.message);
+  }
+
+  try {
+    await buyNowStore.init();
+  } catch (e) {
+    console.error("Failed to init buy-now store:", e.message);
   }
 
   const { state, saveCreds } = await useMultiFileAuthState(sessionFolder);

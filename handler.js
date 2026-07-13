@@ -16,9 +16,12 @@
 const config = require("./config");
 const store = require("./store");
 const products = require("./productsStore");
-const { sendInteractiveMessage } = require("gifted-btns");
+const buyNow = require("./buyNowStore");
+const { sendInteractiveMessage, sendButtons } = require("gifted-btns");
 
 const PRODUCT_ROW_PREFIX = "product:";
+const BUY_PREFIX = "buy:";
+const MENU_ID = "products:menu";
 
 function formatPrice(price) {
   const cur = config.productsCurrency || "";
@@ -88,7 +91,44 @@ async function sendProductDetails(sock, msg, from, product) {
     `🛍 *${product.name}*\n` +
     `💰 Price: ${formatPrice(product.price)}\n\n` +
     `${product.description || "(no description)"}`;
-  await sock.sendMessage(from, { text: body }, { quoted: msg });
+
+  try {
+    await sendButtons(
+      sock,
+      from,
+      {
+        text: body,
+        footer: "Tap a button below",
+        buttons: [
+          { id: `${BUY_PREFIX}${product.id}`, text: config.buyNowButtonText || "🛒 Buy Now" },
+          { id: MENU_ID, text: config.productsButtonText || "🛍 Products" },
+        ],
+      },
+      { quoted: msg }
+    );
+  } catch (e) {
+    console.error("sendButtons (product details) failed:", e);
+    await sock.sendMessage(from, { text: body }, { quoted: msg });
+  }
+}
+
+async function sendTextWithProductsButton(sock, msg, from, text) {
+  try {
+    await sendButtons(
+      sock,
+      from,
+      {
+        text,
+        buttons: [
+          { id: MENU_ID, text: config.productsButtonText || "🛍 Products" },
+        ],
+      },
+      { quoted: msg }
+    );
+  } catch (e) {
+    console.error("sendButtons (auto-reply) failed:", e);
+    await sock.sendMessage(from, { text }, { quoted: msg });
+  }
 }
 
 function extractSelectedId(message) {
@@ -149,6 +189,9 @@ const OWNER_HELP =
   "• `!listproducts` — list products\n" +
   "• `!clearproducts` — remove all products\n" +
   "• `!producthelp` — show product help\n\n" +
+  "*Owner Buy Now commands:*\n" +
+  "• `!setbuynow <text>` — set Buy Now reply (placeholders: {name}, {price}, {description})\n" +
+  "• `!getbuynow` — show current Buy Now reply\n\n" +
   "Data is saved to Google Drive and survives redeploys.";
 
 async function handleOwnerCommand(sock, msg, from, text) {
@@ -300,6 +343,27 @@ async function handleOwnerCommand(sock, msg, from, text) {
     return true;
   }
 
+  // ===== Buy Now commands =====
+  if (lower === "!getbuynow") {
+    await reply(`*Current Buy Now reply:*\n\n${buyNow.get()}`);
+    return true;
+  }
+
+  if (lower.startsWith("!setbuynow")) {
+    const rest = trimmed.slice("!setbuynow".length).trim();
+    if (!rest) {
+      await reply(
+        "Usage: `!setbuynow <text>`\n" +
+          "Placeholders: {name}, {price}, {description}\n" +
+          "Example: `!setbuynow Thanks for choosing {name}! Send {price} to JazzCash 0300xxxxxxx.`"
+      );
+      return true;
+    }
+    const ok = await buyNow.set(rest);
+    await reply(ok ? "✅ Buy Now reply saved and synced to Drive." : "⚠️ Saved locally but failed to sync to Drive.");
+    return true;
+  }
+
   return false;
 }
 
@@ -339,14 +403,27 @@ async function handleMessage(sock, msg) {
       if (!mentioned) return;
     }
 
-    // Handle product list/button selection (id `product:<id>`).
+    // Handle button selections.
     const selectedId = extractSelectedId(msg.message);
-    if (selectedId && selectedId.startsWith(PRODUCT_ROW_PREFIX)) {
-      const id = selectedId.slice(PRODUCT_ROW_PREFIX.length);
-      const p = products.get(id);
-      if (p) {
-        await sendProductDetails(sock, msg, from, p);
+    if (selectedId) {
+      if (selectedId === MENU_ID) {
+        await sendProductsMenu(sock, msg, from);
         return;
+      }
+      if (selectedId.startsWith(BUY_PREFIX)) {
+        const id = selectedId.slice(BUY_PREFIX.length);
+        const p = products.get(id);
+        const reply = buyNow.render(p || {});
+        await sendTextWithProductsButton(sock, msg, from, reply);
+        return;
+      }
+      if (selectedId.startsWith(PRODUCT_ROW_PREFIX)) {
+        const id = selectedId.slice(PRODUCT_ROW_PREFIX.length);
+        const p = products.get(id);
+        if (p) {
+          await sendProductDetails(sock, msg, from, p);
+          return;
+        }
       }
     }
 
@@ -370,7 +447,7 @@ async function handleMessage(sock, msg) {
       await sock.sendPresenceUpdate("paused", from).catch(() => {});
     }
 
-    await sock.sendMessage(from, { text: hit.reply }, { quoted: msg });
+    await sendTextWithProductsButton(sock, msg, from, hit.reply);
   } catch (err) {
     console.error("handleMessage error:", err);
   }
