@@ -436,7 +436,7 @@ async function handleMessage(sock, msg) {
       await sock.sendPresenceUpdate("paused", from).catch(() => {});
     }
 
-    await sendAutoReplyWithButtons(sock, msg, from, hit.reply);
+    await sock.sendMessage(from, { text: hit.reply }, { quoted: msg });
   } catch (err) {
     console.error("handleMessage error:", err);
   }
