@@ -112,21 +112,52 @@ async function sendProductDetails(sock, msg, from, product) {
   }
 }
 
-async function sendTextWithProductsButton(sock, msg, from, text) {
+const BUY_GENERIC_ID = "buy:__generic__";
+
+async function sendAutoReplyWithButtons(sock, msg, from, text) {
+  const items = products.list();
+  const rows = items.slice(0, 10).map((p) => ({
+    id: `${PRODUCT_ROW_PREFIX}${p.id}`,
+    title: p.name,
+    description: formatPrice(p.price),
+  }));
+
   try {
-    await sendButtons(
+    const interactiveButtons = [];
+    if (rows.length > 0) {
+      interactiveButtons.push({
+        name: "single_select",
+        buttonParamsJson: JSON.stringify({
+          title: config.productsMenuButton || "🛍 Products",
+          sections: [
+            {
+              title: config.productsSectionTitle || "PRODUCTS",
+              rows,
+            },
+          ],
+        }),
+      });
+    }
+    interactiveButtons.push({
+      name: "quick_reply",
+      buttonParamsJson: JSON.stringify({
+        display_text: config.buyNowButtonText || "🛒 Buy Now",
+        id: BUY_GENERIC_ID,
+      }),
+    });
+
+    await sendInteractiveMessage(
       sock,
       from,
       {
         text,
-        buttons: [
-          { id: MENU_ID, text: config.productsButtonText || "🛍 Products" },
-        ],
+        footer: "",
+        interactiveButtons,
       },
       { quoted: msg }
     );
   } catch (e) {
-    console.error("sendButtons (auto-reply) failed:", e);
+    console.error("sendInteractiveMessage (auto-reply) failed:", e);
     await sock.sendMessage(from, { text }, { quoted: msg });
   }
 }
