@@ -91,6 +91,27 @@ async function sendProductDetails(sock, msg, from, product) {
   await sock.sendMessage(from, { text: body }, { quoted: msg });
 }
 
+function extractSelectedId(message) {
+  if (!message) return "";
+  const list = message.listResponseMessage?.singleSelectReply?.selectedRowId;
+  if (list) return list;
+  const btn =
+    message.buttonsResponseMessage?.selectedButtonId ||
+    message.templateButtonReplyMessage?.selectedId;
+  if (btn) return btn;
+  const paramsJson =
+    message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+  if (paramsJson) {
+    try {
+      const parsed = JSON.parse(paramsJson);
+      if (parsed?.id) return parsed.id;
+      if (Array.isArray(parsed?.selected_ids) && parsed.selected_ids[0])
+        return parsed.selected_ids[0];
+    } catch {}
+  }
+  return "";
+}
+
 function extractText(message) {
   if (!message) return "";
   return (
@@ -98,8 +119,7 @@ function extractText(message) {
     message.extendedTextMessage?.text ||
     message.imageMessage?.caption ||
     message.videoMessage?.caption ||
-    message.buttonsResponseMessage?.selectedButtonId ||
-    message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    extractSelectedId(message) ||
     ""
   );
 }
