@@ -27,6 +27,19 @@ module.exports = {
   // Created automatically on first save.
   driveFileName: "autoreply_bot_rules.txt",
 
+  // File name used on Google Drive to store your products catalog.
+  productsFileName: "autoreply_bot_products.json",
+
+  // Currency label prepended to product prices in the menu (e.g. "PKR", "$").
+  productsCurrency: "PKR",
+
+  // Title shown at the top of the products list menu.
+  productsMenuTitle: "Products",
+  productsMenuBody: "🛍 *PRODUCTS*\n\nSelect a product to see its details:",
+  productsMenuFooter: "Tap 'Browse' to see the list",
+  productsMenuButton: "Browse",
+  productsSectionTitle: "💎 PREMIUM SERVICES",
+
   // ===== MATCHING CONFIGURATION =====
   // Match mode for triggers:
   //   "exact"    -> message must equal the trigger

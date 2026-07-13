@@ -15,6 +15,71 @@
 
 const config = require("./config");
 const store = require("./store");
+const products = require("./productsStore");
+
+const PRODUCT_ROW_PREFIX = "product:";
+
+function formatPrice(price) {
+  const cur = config.productsCurrency || "";
+  return cur ? `${cur} ${price}` : String(price);
+}
+
+async function sendProductsMenu(sock, msg, from) {
+  const items = products.list();
+  if (items.length === 0) {
+    await sock.sendMessage(
+      from,
+      { text: "No products available yet." },
+      { quoted: msg }
+    );
+    return;
+  }
+
+  const rows = items.slice(0, 10).map((p) => ({
+    title: p.name,
+    rowId: `${PRODUCT_ROW_PREFIX}${p.id}`,
+    description: formatPrice(p.price),
+  }));
+
+  const listMsg = {
+    text: config.productsMenuBody || "Select a product:",
+    footer: config.productsMenuFooter || "",
+    title: config.productsMenuTitle || "Products",
+    buttonText: config.productsMenuButton || "Browse",
+    sections: [
+      {
+        title: config.productsSectionTitle || "PRODUCTS",
+        rows,
+      },
+    ],
+  };
+
+  try {
+    await sock.sendMessage(from, listMsg, { quoted: msg });
+  } catch (e) {
+    // Fallback to plain text if list message unsupported by client.
+    const body = items
+      .map((p, i) => `${i + 1}. *${p.name}* — ${formatPrice(p.price)}`)
+      .join("\n");
+    await sock.sendMessage(
+      from,
+      {
+        text:
+          `🛍 *${config.productsMenuTitle || "Products"}*\n\n${body}\n\n` +
+          `Reply with a product name to see details.`,
+      },
+      { quoted: msg }
+    );
+  }
+}
+
+async function sendProductDetails(sock, msg, from, product) {
+  const body =
+    `🛍 *${product.name}*\n` +
+    `💰 Price: ${formatPrice(product.price)}\n\n` +
+    `${product.description || "(no description)"}`;
+  await sock.sendMessage(from, { text: body }, { quoted: msg });
+}
 
 function extractText(message) {
   if (!message) return "";
@@ -48,7 +113,13 @@ const OWNER_HELP =
   "• `!listreplies` — show all rules\n" +
   "• `!clearreplies` — delete every rule\n" +
   "• `!replyhelp` — show this help\n\n" +
-  "Rules are saved to Google Drive and survive redeploys.";
+  "*Owner product commands:*\n" +
+  "• `!addproduct <name> | <price> | <description>` — add / update a product\n" +
+  "• `!delproduct <name>` — delete a product\n" +
+  "• `!listproducts` — list products\n" +
+  "• `!clearproducts` — remove all products\n" +
+  "• `!producthelp` — show product help\n\n" +
+  "Data is saved to Google Drive and survives redeploys.";
 
 async function handleOwnerCommand(sock, msg, from, text) {
   const trimmed = text.trim();
@@ -124,8 +195,84 @@ async function handleOwnerCommand(sock, msg, from, text) {
     return true;
   }
 
+  // ===== product commands =====
+  if (lower === "!producthelp") {
+    await reply(
+      "*Owner product commands:*\n" +
+        "• `!addproduct <name> | <price> | <description>`\n" +
+        "• `!delproduct <name>`\n" +
+        "• `!listproducts`\n" +
+        "• `!clearproducts`\n\n" +
+        "Users can send `!products` to open the menu."
+    );
+    return true;
+  }
+
+  if (lower === "!listproducts") {
+    const items = products.list();
+    if (items.length === 0) {
+      await reply("No products configured. Use `!addproduct` to add one.");
+      return true;
+    }
+    const body = items
+      .map(
+        (p, i) =>
+          `${i + 1}. *${p.name}* — ${formatPrice(p.price)}\n    ${p.description}`
+      )
+      .join("\n\n");
+    await reply(`*Products (${items.length}):*\n\n${body}`);
+    return true;
+  }
+
+  if (lower === "!clearproducts") {
+    const ok = await products.clearAll();
+    await reply(
+      ok ? "✅ All products cleared and synced to Drive." : "❌ Failed to sync to Drive."
+    );
+    return true;
+  }
+
+  if (lower.startsWith("!addproduct")) {
+    const rest = trimmed.slice("!addproduct".length).trim();
+    const parts = rest.split("|").map((s) => s.trim());
+    if (parts.length < 3 || !parts[0] || !parts[1] || !parts[2]) {
+      await reply(
+        "Usage: `!addproduct <name> | <price> | <description>`\n" +
+          "Example: `!addproduct Capcut Pro 1 Month | 895 | Full month subscription, instant delivery.`"
+      );
+      return true;
+    }
+    const [name, price, ...descParts] = parts;
+    const description = descParts.join(" | ");
+    const res = await products.add({ name, price, description });
+    if (!res.ok) {
+      await reply("⚠️ Saved locally but failed to sync to Drive.");
+    } else if (res.updated) {
+      await reply(`✏️ Updated *${res.product.name}* and synced to Drive.`);
+    } else {
+      await reply(`✅ Added *${res.product.name}* and synced to Drive.`);
+    }
+    return true;
+  }
+
+  if (lower.startsWith("!delproduct")) {
+    const name = trimmed.slice("!delproduct".length).trim();
+    if (!name) {
+      await reply("Usage: `!delproduct <name>`");
+      return true;
+    }
+    const res = await products.remove(name);
+    if (!res.ok) {
+      await reply(`No product found matching *${name}*.`);
+    } else {
+      await reply(`🗑️ Deleted *${res.product.name}* and synced to Drive.`);
+    }
+    return true;
+  }
+
   return false;
 }
+
 
 async function handleMessage(sock, msg) {
   try {
@@ -160,6 +307,27 @@ async function handleMessage(sock, msg) {
         msg.message.extendedTextMessage?.contextInfo?.mentionedJid || [];
       const mentioned = botId && mentions.some((j) => j.startsWith(botId));
       if (!mentioned) return;
+    }
+
+    // Handle product list selection (rowId `product:<id>`).
+    const selectedRowId =
+      msg.message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+      msg.message.interactiveResponseMessage?.nativeFlowResponseMessage
+        ?.paramsJson || "";
+    if (typeof selectedRowId === "string" && selectedRowId.startsWith(PRODUCT_ROW_PREFIX)) {
+      const id = selectedRowId.slice(PRODUCT_ROW_PREFIX.length);
+      const p = products.get(id);
+      if (p) {
+        await sendProductDetails(sock, msg, from, p);
+        return;
+      }
+    }
+
+    // !products (available to everyone) opens the products menu.
+    const cmd = text.trim().toLowerCase();
+    if (cmd === "!products" || cmd === "products") {
+      await sendProductsMenu(sock, msg, from);
+      return;
     }
 
     const hit = store.findMatch(text, {
