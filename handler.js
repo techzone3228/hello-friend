@@ -16,9 +16,12 @@
 const config = require("./config");
 const store = require("./store");
 const products = require("./productsStore");
-const { sendInteractiveMessage } = require("gifted-btns");
+const buyNow = require("./buyNowStore");
+const { sendInteractiveMessage, sendButtons } = require("gifted-btns");
 
 const PRODUCT_ROW_PREFIX = "product:";
+const BUY_PREFIX = "buy:";
+const MENU_ID = "products:menu";
 
 function formatPrice(price) {
   const cur = config.productsCurrency || "";
