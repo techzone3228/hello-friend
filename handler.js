@@ -189,6 +189,9 @@ const OWNER_HELP =
   "• `!listproducts` — list products\n" +
   "• `!clearproducts` — remove all products\n" +
   "• `!producthelp` — show product help\n\n" +
+  "*Owner Buy Now commands:*\n" +
+  "• `!setbuynow <text>` — set Buy Now reply (placeholders: {name}, {price}, {description})\n" +
+  "• `!getbuynow` — show current Buy Now reply\n\n" +
   "Data is saved to Google Drive and survives redeploys.";
 
 async function handleOwnerCommand(sock, msg, from, text) {
